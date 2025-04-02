@@ -542,4 +542,16 @@ function Model(loopy){
 
 	};
 
+	// Update size whenever window changes
+	var _onResize = function(){
+		var sidebar = document.getElementById("sidebar");
+		if(!loopy.embedded){
+			self.canvas.width = document.body.clientWidth - sidebar.clientWidth;
+		}else{
+			self.canvas.width = document.body.clientWidth;
+		}
+		self.canvas.height = document.body.clientHeight;
+		publish("resize");
+	};
+
 }

@@ -64,7 +64,249 @@ function Loopy(config){
 
 	self.init = function(){
 		self.loadFromURL(); // try it.
+		
+		// Notify parent window that Loopy is ready
+		try {
+			window.parent.postMessage({ type: 'loopy_ready' }, '*');
+		} catch (e) {
+			console.log('Error sending ready message:', e);
+		}
+		
+		// Add a listener for messages from the parent window
+		window.addEventListener('message', function(event) {
+			// Check for model data from parent
+			if (event.data && event.data.action === 'load' && event.data.data) {
+				try {
+					var modelData = JSON.parse(event.data.data);
+					self.loadExternalModel(modelData);
+				} catch (e) {
+					console.error('Error loading external model:', e);
+				}
+			}
+			
+			// Handle export to CatColab request
+			if (event.data && event.data.action === 'requestExportCatColab') {
+				console.log('Loopy received request to export to CatColab');
+				try {
+					// Convert current model to CatColab format
+					console.log('Converting current model to CatColab format...');
+					var catColabModel = convertToColabFormat();
+					console.log('Model converted successfully:', catColabModel);
+					
+					// Send it back to the parent window
+					window.parent.postMessage({
+						action: 'exportCatColab',
+						data: JSON.stringify(catColabModel)
+					}, '*');
+					console.log('Sent CatColab data back to parent');
+				} catch (e) {
+					console.error('Error exporting to CatColab:', e);
+					console.error('Error details:', e.message);
+					console.error('Stack trace:', e.stack);
+				}
+			}
+		});
 	};
+
+	// Helper function to convert Loopy model to CatColab format
+	function convertToColabFormat() {
+		// Generate a UUID with the exact format used in CatColab
+		// The format appears to be '01' + a 6-digit hex in first group, followed by standard 4-4-4-12 groups
+		function generateUUID() {
+			// Helper to generate hex string of exact length
+			function getHexString(length) {
+				let result = '';
+				const characters = '0123456789abcdef';
+				for (let i = 0; i < length; i++) {
+					result += characters.charAt(Math.floor(Math.random() * characters.length));
+				}
+				return result;
+			}
+			
+			// Exactly match the format from the example files
+			return '01' + getHexString(6) + '-' + 
+				getHexString(4) + '-' + 
+				getHexString(4) + '-' + 
+				getHexString(4) + '-' + 
+				getHexString(12);
+		}
+		
+		// Initialize CatColab model with exact structure from examples
+		var catColabModel = {
+			name: "",
+			notebook: {
+				cells: []
+			},
+			theory: "causal-loop",
+			type: "model"
+		};
+		
+		// Create a map to store node IDs for reference in morphisms
+		var nodeIDMap = {};
+		var cellArray = catColabModel.notebook.cells;
+		
+		// Process nodes to objects (first pass)
+		self.model.nodes.forEach(function(node) {
+			// Generate UUIDs for cell and object
+			var cellId = generateUUID();
+			var objectId = generateUUID();
+			
+			// Store the mapping for later use in morphisms
+			nodeIDMap[node.id] = objectId;
+			
+			// Create object cell structure
+			var objectCell = {
+				tag: "formal",
+				id: cellId,
+				content: {
+					tag: "object",
+					id: objectId,
+					name: node.label || ("Node " + node.id),
+					obType: {
+						tag: "Basic",
+						content: "Object"
+					}
+				}
+			};
+			
+			// Add to cells array
+			cellArray.push(objectCell);
+		});
+		
+		// Process edges to morphisms (second pass)
+		self.model.edges.forEach(function(edge) {
+			// Generate UUIDs for cell and morphism
+			var cellId = generateUUID();
+			var morphismId = generateUUID();
+			
+			// Determine morType based on edge strength
+			var morphismType = edge.strength > 0 ? 
+				{
+					tag: "Hom",
+					content: {
+						tag: "Basic",
+						content: "Object"
+					}
+				} :
+				{
+					tag: "Basic",
+					content: "Negative"
+				};
+			
+			// Create morphism cell structure
+			var morphismCell = {
+				tag: "formal",
+				id: cellId,
+				content: {
+					tag: "morphism",
+					id: morphismId,
+					name: "",
+					morType: morphismType,
+					dom: {
+						tag: "Basic",
+						content: nodeIDMap[edge.from.id]
+					},
+					cod: {
+						tag: "Basic",
+						content: nodeIDMap[edge.to.id]
+					}
+				}
+			};
+			
+			// Add to cells array
+			cellArray.push(morphismCell);
+		});
+		
+		// Add a stem cell (typically found in examples)
+		cellArray.push({
+			tag: "stem",
+			id: generateUUID()
+		});
+		
+		return catColabModel;
+	}
+
+	// Load model from external data format
+	self.loadExternalModel = function(modelData) {
+		try {
+			// Reset everything
+			publish("model/reset");
+			self.model.clear();
+			self.model.edges = [];
+			
+			// Convert our model format to Loopy's serialized format
+			const loopyFormat = convertToLoopyFormat(modelData);
+			
+			// Use Loopy's own deserialization which properly handles object creation
+			self.model.deserialize(loopyFormat);
+			
+			// Switch to play mode
+			self.setMode(Loopy.MODE_PLAY);
+			
+		} catch (error) {
+			console.error("Critical error in loadExternalModel:", error);
+		}
+	};
+
+	// Helper function to convert our model format to Loopy's serialized format
+	function convertToLoopyFormat(model) {
+		try {
+			// Create arrays for nodes, edges, and labels
+			const nodes = [];
+			const edges = [];
+			const labels = [];
+			
+			// Process nodes
+			if (model.nodes && Array.isArray(model.nodes)) {
+				for (let i = 0; i < model.nodes.length; i++) {
+					const node = model.nodes[i];
+					// Format: [id, x, y, init, label, hue]
+					nodes.push([
+						i+1, // Loopy uses 1-based IDs
+						node.x,
+						node.y,
+						1, // init value
+						encodeURIComponent(node.name || ""),
+						node.hue || 0
+					]);
+				}
+			}
+			
+			// Process edges
+			if (model.edges && Array.isArray(model.edges)) {
+				for (let i = 0; i < model.edges.length; i++) {
+					const edge = model.edges[i];
+					// Format: [from_id, to_id, arc, strength, rotation]
+					edges.push([
+						edge.from + 1, // convert to 1-based IDs
+						edge.to + 1,   // convert to 1-based IDs
+						edge.arc || 0,
+						edge.strength || 1,
+						0 // rotation
+					]);
+				}
+			}
+			
+			// Process labels
+			if (model.labels && Array.isArray(model.labels)) {
+				for (let i = 0; i < model.labels.length; i++) {
+					const label = model.labels[i];
+					// Format: [x, y, text]
+					labels.push([
+						label.x,
+						label.y,
+						encodeURIComponent(label.text || "")
+					]);
+				}
+			}
+			
+			// Return serialized format: [nodes, edges, labels, mode]
+			return JSON.stringify([nodes, edges, labels, Loopy.MODE_PLAY]);
+		} catch (error) {
+			console.error("Error converting to Loopy format:", error);
+			return "[]";
+		}
+	}
 
 	///////////////////
 	// UPDATE & DRAW //
@@ -165,6 +407,21 @@ function Loopy(config){
 			}
 		};
 		input.click();
+	});
+
+	// Convert and export model to CatColab format
+	subscribe("export/catcolab", function(){
+		// Convert the model to CatColab format
+		var catColabModel = convertToColabFormat();
+
+		// Create downloadable file
+		var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(catColabModel, null, 2));
+		var downloadAnchorNode = document.createElement('a');
+		downloadAnchorNode.setAttribute("href", dataStr);
+		downloadAnchorNode.setAttribute("download", "loopy_export_catcolab.json");
+		document.body.appendChild(downloadAnchorNode);
+		downloadAnchorNode.click();
+		downloadAnchorNode.remove();
 	});
 
 	self.saveToURL = function(embed){

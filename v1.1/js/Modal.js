@@ -255,6 +255,54 @@ function Modal(loopy){
 		self.addPage("save_gif", page);
 	})();
 
+	// CatColab Export
+	(function(){
+		var page = new Page();
+		page.width = 600;
+		page.height = 450;
+		
+		page.addComponent(new ComponentHTML({
+			html: "<div style='text-align:center; margin-bottom:20px;'><b style='font-size:1.4em'>Export to CatColab</b></div>" +
+				"<p><a href='https://catcolab.org' target='_blank'>CatColab</a> is a collaborative environment for formal, interoperable, conceptual modeling. " +
+				"It allows you to create, share, and connect models across different domains.</p>" +
+				"<p>Your Loopy model will be exported in the exact format used by CatColab's causal-loop theory models:</p>" +
+				"<ul>" +
+				"<li>Nodes will be converted to <code>object</code> cells with proper UUIDs</li>" +
+				"<li>Edges will be converted to <code>morphism</code> cells with type <code>Negative</code> for negative influences</li>" +
+				"<li>Positive influences use the <code>Hom</code> morphism type with <code>Object</code> content</li>" +
+				"<li>The model will have <code>theory: \"causal-loop\"</code> and <code>type: \"model\"</code></li>" +
+				"</ul>" +
+				"<p>This exact format matches the structure found in the example models like wolfchickens.json, " +
+				"allowing for seamless integration with your existing CatColab ecosystem.</p>" +
+				"<p>Click the button below to download your model in CatColab format:</p>"
+		}));
+		
+		// Download button
+		var downloadButton = document.createElement("div");
+		downloadButton.className = "sexy_button";
+		downloadButton.innerHTML = "Download CatColab File";
+		downloadButton.style.textAlign = "center";
+		downloadButton.style.cursor = "pointer";
+		downloadButton.style.marginTop = "15px";
+		downloadButton.onclick = function(){
+			// Use the existing export function
+			publish("export/catcolab");
+		};
+		page.dom.appendChild(downloadButton);
+		
+		// Info about uploading
+		var uploadInfo = document.createElement("div");
+		uploadInfo.style.marginTop = "20px";
+		uploadInfo.style.fontSize = "14px";
+		uploadInfo.style.color = "#888";
+		uploadInfo.innerHTML = "After downloading, you can import this file into CatColab " + 
+			"by visiting <a href='https://catcolab.org' target='_blank'>catcolab.org</a>. " +
+			"The exported model will match the format of your existing causal-loop diagram models.";
+		page.dom.appendChild(uploadInfo);
+		
+		self.addPage("export_catcolab", page);
+	})();
+
 }
 
 function ModalIframe(config){

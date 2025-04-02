@@ -9,6 +9,37 @@ function Sidebar(loopy){
 	var self = this;
 	PageUI.call(self, document.getElementById("sidebar"));
 
+	// Create toggle button
+	self.toggleButton = document.createElement("div");
+	self.toggleButton.id = "sidebar_toggle";
+	self.toggleButton.innerHTML = ">";
+	self.toggleButton.onclick = function() {
+		self.toggleMinimized();
+	};
+	self.dom.appendChild(self.toggleButton);
+	
+	// Minimized state
+	self.isMinimized = false;
+	
+	// Toggle minimized state
+	self.toggleMinimized = function() {
+		self.isMinimized = !self.isMinimized;
+		
+		// Update classes
+		if (self.isMinimized) {
+			self.dom.classList.add("minimized");
+			document.getElementById("canvasses").classList.add("sidebar-minimized");
+			self.toggleButton.innerHTML = "<";
+		} else {
+			self.dom.classList.remove("minimized");
+			document.getElementById("canvasses").classList.remove("sidebar-minimized");
+			self.toggleButton.innerHTML = ">";
+		}
+		
+		// Resize event
+		publish("resize");
+	};
+
 	// Edit
 	self.edit = function(object){
 		self.showPage(object._CLASS_);
