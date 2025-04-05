@@ -93,10 +93,11 @@ function Loopy(config){
 					var catColabModel = convertToColabFormat();
 					console.log('Model converted successfully:', catColabModel);
 					
-					// Send it back to the parent window
+					// Send it back to the parent window, passing along shareRequested flag if present
 					window.parent.postMessage({
 						action: 'exportCatColab',
-						data: JSON.stringify(catColabModel)
+						data: JSON.stringify(catColabModel),
+						shareRequested: event.data.shareRequested || false
 					}, '*');
 					console.log('Sent CatColab data back to parent');
 				} catch (e) {
