@@ -165,13 +165,6 @@ function Sidebar(loopy){
 			"<span class='mini_button' onclick='publish(\"modal\",[\"credits\"])'>credits</span><br><br>"+
 
 			"<hr/><br>"+
-
-			"<span class='mini_button' onclick='publish(\"modal\",[\"save_link\"])'>save as link</span> <br><br>"+
-			//"<span class='mini_button' onclick='publish(\"modal\",[\"save_image\"])'>save as image</span> <br><br>"+
-			"<span class='mini_button' onclick='publish(\"modal\",[\"embed\"])'>embed in your website</span> <br><br>"+
-			"<span class='mini_button' onclick='publish(\"modal\",[\"save_gif\"])'>make a GIF using LICEcap</span> <br><br>"+
-
-			"<hr/><br>"+
 				
 			"<a target='_blank' href='../'>LOOPY</a> is "+
 			"made by <a target='_blank' href='http://ncase.me'>nicky case</a> "+
